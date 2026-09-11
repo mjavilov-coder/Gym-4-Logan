@@ -46,6 +46,8 @@ header .title{font-family:'Barlow Condensed'; font-weight:700; font-size:24px; t
 .role-switch button{border-radius:0; padding:7px 12px; font-size:13px; background:transparent; color:var(--ink-dim);}
 .role-switch button.on{background:var(--chalk); color:#16181D;}
 .gear{background:transparent; border:none; color:var(--ink-dim); font-size:20px; padding:6px;}
+.ath-banner{font-size:14px; color:var(--ink-dim); margin-top:-2px;}
+.ath-banner strong{color:var(--ink);}
 
 /* cards */
 .card{background:var(--surface); border-radius:var(--r); padding:16px; margin:12px 0; border:1px solid var(--line);}
@@ -56,6 +58,7 @@ header .title{font-family:'Barlow Condensed'; font-weight:700; font-size:24px; t
 .session-card .name{font-family:'Barlow Condensed'; font-weight:700; font-size:22px; text-transform:uppercase; letter-spacing:.02em;}
 .session-card .meta{font-size:13px; color:var(--ink-dim); margin-top:2px;}
 .session-card .chev{padding-right:14px; color:var(--ink-faint); font-size:20px;}
+.session-card .side-act{padding-right:12px;}
 
 /* exercise rows (coach) */
 .ex-row{display:flex; align-items:center; gap:8px; padding:12px 0; border-bottom:1px solid var(--line);}
@@ -90,7 +93,6 @@ header .title{font-family:'Barlow Condensed'; font-weight:700; font-size:24px; t
 .d5.on{background:var(--red); border-color:var(--red); color:var(--ink);}
 .savedflag{font-size:13px; color:var(--green); font-weight:600;}
 
-/* difficulty dot in history */
 .dot{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:baseline;}
 
 /* log table */
@@ -131,11 +133,14 @@ header .title{font-family:'Barlow Condensed'; font-weight:700; font-size:24px; t
 "use strict";
 /* ---------- config & state ---------- */
 const PLATE = {red:"#D64541", blue:"#3E7BC4", yellow:"#E8B93C", green:"#4C9A6A"};
+const PLATE_CYCLE = ["red","blue","yellow","green"];
 const DIFF = ["","Too easy","Easy","Solid","Hard","Maxed out"];
 const DIFFC = ["","#4C9A6A","#7FB98A","#E8B93C","#DE7A3A","#D64541"];
 let cfg = JSON.parse(localStorage.getItem("gym_cfg")||"null");
 let role = localStorage.getItem("gym_role")||null;
-let S = { view:"home", sessions:[], exercises:{}, curSession:null, lastLogs:{}, todayLogs:{}, saved:{} };
+let myAthlete = JSON.parse(localStorage.getItem("gym_athlete")||"null"); // {id,name} — athlete devices only
+let S = { view:"home", athletes:[], sessions:[], sessionCounts:{}, exercises:{}, curAthlete:null, curSession:null,
+          lastLogs:{}, todayLogs:{}, saved:{}, logbook:[] };
 
 /* accept setup link: #cfg=base64(json) */
 (function(){
@@ -176,8 +181,16 @@ async function api(path, method="GET", body){
 }
 
 /* ---------- data loads ---------- */
-async function loadSessions(){
-  S.sessions = await api("sessions?select=*&order=sort_order.asc,created_at.asc");
+async function loadAthletes(){
+  S.athletes = await api("athletes?select=*&order=created_at.asc");
+}
+async function loadSessionCounts(){
+  const all = await api("sessions?select=id,athlete_id");
+  S.sessionCounts = {};
+  for(const s of all) S.sessionCounts[s.athlete_id] = (S.sessionCounts[s.athlete_id]||0)+1;
+}
+async function loadSessions(athleteId){
+  S.sessions = await api(`sessions?athlete_id=eq.${athleteId}&select=*&order=sort_order.asc,created_at.asc`);
 }
 async function loadExercises(sessionId){
   S.exercises[sessionId] = await api(`exercises?session_id=eq.${sessionId}&select=*&order=sort_order.asc,created_at.asc`);
@@ -200,18 +213,21 @@ function render(){
   if(!role){ app.innerHTML = viewRolePick(); return; }
   let inner = "";
   switch(S.view){
-    case "home": inner = role==="coach" ? viewCoachHome() : viewAthleteHome(); break;
+    case "home":        inner = role==="coach" ? viewCoachHome() : viewAthleteHome(); break;
+    case "pickAthlete": inner = viewPickAthlete(); break;
+    case "sessions":    inner = viewSessions(); break;
     case "editSession": inner = viewEditSession(); break;
-    case "workout": inner = viewWorkout(); break;
-    case "logbook": inner = viewLogbook(); break;
-    case "settings": inner = viewSettings(); break;
+    case "workout":     inner = viewWorkout(); break;
+    case "logbook":     inner = viewLogbook(); break;
+    case "settings":    inner = viewSettings(); break;
   }
   app.innerHTML = viewHeader() + inner;
 }
 function viewHeader(){
   const title = esc(cfg.title||"The Program");
+  const sub = role==="athlete" && myAthlete ? `<div class="ath-banner">Training as <strong>${esc(myAthlete.name)}</strong></div>` : "";
   return `<header>
-    <div class="title">${title}</div>
+    <div><div class="title">${title}</div>${sub}</div>
     <div style="display:flex;gap:8px;align-items:center;">
       <div class="role-switch" role="group" aria-label="Mode">
         <button class="${role==='coach'?'on':''}" onclick="App.setRole('coach')">Coach</button>
@@ -225,11 +241,11 @@ function viewSetup(){
   return `<header><div class="title">The Program</div></header>
   <div class="card">
     <h2>Connect your database</h2>
-    <p style="color:var(--ink-dim);font-size:14px;">One-time step. Paste the two values from your Supabase project (Settings &rarr; API). Nothing is stored in the app file itself &mdash; only on this device.</p>
+    <p style="color:var(--ink-dim);font-size:14px;">One-time step. Paste the two values from your Supabase project. The URL ends at <strong>.supabase.co</strong> &mdash; nothing after it.</p>
     <label>Supabase project URL</label>
     <input id="su" placeholder="https://xxxx.supabase.co" autocomplete="off">
-    <label>Anon public key</label>
-    <input id="sk" placeholder="eyJhbGciOi..." autocomplete="off">
+    <label>Publishable / anon key</label>
+    <input id="sk" placeholder="sb_publishable_... or eyJ..." autocomplete="off">
     <div style="margin-top:18px;"><button class="btn" onclick="App.saveSetup()">Test &amp; connect</button></div>
   </div>`;
 }
@@ -239,7 +255,31 @@ function viewRolePick(){
   <button class="session-card" onclick="App.setRole('coach')"><div class="bar" style="background:${PLATE.blue}"></div>
     <div class="body"><div class="name">Coach</div><div class="meta">Build sessions, set targets, review the logbook</div></div><div class="chev">&#8250;</div></button>
   <button class="session-card" onclick="App.setRole('athlete')"><div class="bar" style="background:${PLATE.red}"></div>
-    <div class="body"><div class="name">Athlete</div><div class="meta">Follow today's session and log your lifts</div></div><div class="chev">&#8250;</div></button>`;
+    <div class="body"><div class="name">Athlete</div><div class="meta">Follow your sessions and log your lifts</div></div><div class="chev">&#8250;</div></button>`;
+}
+function athleteColor(i){ return PLATE[PLATE_CYCLE[i % PLATE_CYCLE.length]]; }
+function viewCoachHome(){
+  const cards = S.athletes.length ? S.athletes.map((a,i)=>{
+    const n = S.sessionCounts[a.id]||0;
+    return `<button class="session-card" onclick="App.coachPick('${a.id}')">
+      <div class="bar" style="background:${athleteColor(i)}"></div>
+      <div class="body"><div class="name">${esc(a.name)}</div><div class="meta">${n} session${n===1?"":"s"}</div></div>
+      <span class="side-act"><button class="btn-icon" onclick="event.stopPropagation();App.openAthleteForm('${a.id}')">Rename</button></span>
+      <div class="chev">&#8250;</div></button>`;
+  }).join("") : `<div class="empty">No one on the roster yet. Add your first athlete.</div>`;
+  return `<div class="section-head"><h2>Roster</h2>
+    <button class="btn btn-sm" onclick="App.openAthleteForm()">+ Add person</button></div>
+  ${cards}`;
+}
+function viewPickAthlete(){
+  const cards = S.athletes.length ? S.athletes.map((a,i)=>`
+    <button class="session-card" onclick="App.claimAthlete('${a.id}')">
+      <div class="bar" style="background:${athleteColor(i)}"></div>
+      <div class="body"><div class="name">${esc(a.name)}</div></div>
+      <div class="chev">&#8250;</div></button>`).join("")
+    : `<div class="empty">No athletes set up yet — ask your coach to add you first.</div>`;
+  return `<div style="margin-top:16px;"><h2>Who are you?</h2>
+  <div class="hint">This device will remember your pick.</div></div>${cards}`;
 }
 function sessionCards(onclickName){
   if(!S.sessions.length) return `<div class="empty">No sessions yet.</div>`;
@@ -252,13 +292,14 @@ function sessionCards(onclickName){
       <div class="chev">&#8250;</div></button>`;
   }).join("");
 }
-function viewCoachHome(){
-  return `<div class="section-head"><h2>Sessions</h2>
-    <button class="btn btn-sm" onclick="App.openSessionForm()">+ New session</button></div>
-  ${sessionCards("openEdit")}
-  <div style="margin-top:26px;"><button class="btn-ghost" style="width:100%;" onclick="App.openLogbook()">Open the logbook &mdash; see what's been lifted</button></div>`;
-}
-function viewAthleteHome(){
+function viewSessions(){
+  if(role==="coach"){
+    return `<button class="backlink" onclick="App.go('home')">&#8249; Roster</button>
+    <div class="section-head"><h2>${esc(S.curAthlete.name)}'s sessions</h2>
+      <button class="btn btn-sm" onclick="App.openSessionForm()">+ New session</button></div>
+    ${sessionCards("openEdit")}
+    <div style="margin-top:26px;"><button class="btn-ghost" style="width:100%;" onclick="App.openLogbook()">Open ${esc(S.curAthlete.name)}'s logbook</button></div>`;
+  }
   return `<div class="section-head"><h2>Pick today's session</h2></div>
   ${sessionCards("openWorkout")}`;
 }
@@ -274,7 +315,7 @@ function viewEditSession(){
       <button class="btn-icon" onclick="App.openExForm('${e.id}')">Edit</button>
       <button class="btn-icon" onclick="App.showHistory('${e.id}')">Log</button>
     </div>`).join("") : `<div class="empty">No exercises yet. Add the first one.</div>`;
-  return `<button class="backlink" onclick="App.go('home')">&#8249; All sessions</button>
+  return `<button class="backlink" onclick="App.go('sessions')">&#8249; ${esc(S.curAthlete.name)}'s sessions</button>
   <div class="section-head"><h2 style="border-left:8px solid ${PLATE[s.color]||PLATE.red}; padding-left:10px;">${esc(s.name)}</h2>
     <button class="btn-icon" onclick="App.openSessionForm('${s.id}')">Rename / colour</button></div>
   <div class="card">${rows}</div>
@@ -305,7 +346,7 @@ function workoutCard(e){
       <input inputmode="numeric" placeholder="reps (${esc(e.reps)})" value="${esc(reps)}" data-ex="${e.id}" data-set="${i}" data-f="reps" aria-label="Set ${i+1} reps"></div>`;
   }
   const curDiff = tlog ? (tlog.difficulty||0) : 0;
-  const chips = [1,2,3,4,5].map(d=>`<button class="diff-chip d${d} ${curDiff===d?'on':''}" data-diffex="${e.id}" data-d="${d}" onclick="App.pickDiff('${e.id}',${d},this)">${DIFF[d]}</button>`).join("");
+  const chips = [1,2,3,4,5].map(d=>`<button class="diff-chip d${d} ${curDiff===d?'on':''}" data-d="${d}" onclick="App.pickDiff('${e.id}',${d},this)">${DIFF[d]}</button>`).join("");
   const lastLine = last ? `<div class="lasttime">Last time (${fmtDate(last.log_date)}): ${esc(setsSummary(last.set_data))}${last.difficulty?` &middot; <span class="dot" style="background:${DIFFC[last.difficulty]}"></span>${DIFF[last.difficulty]}`:""}</div>` : "";
   const savedNote = S.saved[e.id] || tlog ? `<span class="savedflag" id="saved-${e.id}">Saved today &#10003;</span>` : `<span class="savedflag" id="saved-${e.id}"></span>`;
   const video = vid ? `<div class="vid" id="vid-${e.id}" onclick="App.playVid('${e.id}','${vid}')">
@@ -342,25 +383,30 @@ function viewLogbook(){
       ${role==="coach"?`<div style="margin-top:6px;"><button class="btn-icon" onclick="App.deleteLog('${l.id}')">Delete entry</button></div>`:""}
     </div>`;
   }).join("");
-  return `<button class="backlink" onclick="App.go('home')">&#8249; Back</button>
-  <h2>Logbook</h2><div class="hint">Most recent first, last 40 entries.</div>
+  return `<button class="backlink" onclick="App.go('sessions')">&#8249; Back</button>
+  <h2>${esc(S.curAthlete?S.curAthlete.name+"'s ":"")}Logbook</h2><div class="hint">Most recent first, last 40 entries.</div>
   <div class="card">${rows||'<div class="empty">Nothing logged yet.</div>'}</div>`;
 }
 function viewSettings(){
-  const shareLink = location.origin + location.pathname + "#cfg=" + encodeURIComponent(btoa(JSON.stringify(cfg)));
+  const shareLink = location.origin + location.pathname + "#cfg=" + encodeURIComponent(btoa(JSON.stringify({url:cfg.url,key:cfg.key,title:cfg.title})));
+  const switchBtn = role==="athlete" ? `<div class="card">
+    <h3>Not ${esc(myAthlete?myAthlete.name:"you")}?</h3>
+    <p style="font-size:14px;color:var(--ink-dim);">Hand the phone over or picked the wrong name.</p>
+    <button class="btn-ghost" onclick="App.switchAthlete()">Switch person</button></div>` : "";
   return `<button class="backlink" onclick="App.go('home')">&#8249; Back</button>
   <h2>Settings</h2>
   <div class="card">
     <label>App title</label><input id="set-title" value="${esc(cfg.title||"The Program")}">
     <label>Supabase URL</label><input id="set-url" value="${esc(cfg.url)}">
-    <label>Anon key</label><input id="set-key" value="${esc(cfg.key)}">
+    <label>Publishable / anon key</label><input id="set-key" value="${esc(cfg.key)}">
     <div style="margin-top:16px;"><button class="btn" onclick="App.saveSettings()">Save</button></div>
   </div>
   <div class="card">
-    <h3>Set up the other phone</h3>
-    <p style="font-size:14px;color:var(--ink-dim);">Send this link once &mdash; opening it connects that device automatically (the keys travel inside the link, not the website).</p>
+    <h3>Set up another phone</h3>
+    <p style="font-size:14px;color:var(--ink-dim);">Send this link to anyone on the roster &mdash; opening it connects their device automatically, then they pick their own name. Only share it with people who should see the data.</p>
     <button class="btn-ghost" onclick="App.copyShare('${esc(shareLink)}')">Copy setup link</button>
   </div>
+  ${switchBtn}
   <div class="card">
     <button class="btn-danger btn-sm" onclick="App.disconnect()">Disconnect this device</button>
   </div>`;
@@ -379,23 +425,86 @@ function closeModal(){ const m=document.querySelector(".modal-back"); if(m) m.re
 
 /* ---------- app actions ---------- */
 const App = {
-  go(v){ S.view=v; if(v==="home") this.refreshHome(); else render(); },
-  setRole(r){ role=r; localStorage.setItem("gym_role",r); S.view="home"; this.refreshHome(); },
+  go(v){
+    if(v==="home"){ this.refreshHome(); return; }
+    if(v==="sessions" && role==="coach" && S.curAthlete){ this.coachPick(S.curAthlete.id); return; }
+    S.view=v; render();
+  },
+  setRole(r){ role=r; localStorage.setItem("gym_role",r); this.refreshHome(); },
 
   async refreshHome(){
     try{
-      await loadSessions();
+      await loadAthletes();
+      if(role==="coach"){
+        await loadSessionCounts();
+        S.curAthlete=null; S.view="home"; render();
+        return;
+      }
+      // athlete role
+      if(myAthlete){
+        const still = S.athletes.find(a=>a.id===myAthlete.id);
+        if(!still){ myAthlete=null; localStorage.removeItem("gym_athlete"); }
+        else if(still.name!==myAthlete.name){ myAthlete=still; localStorage.setItem("gym_athlete", JSON.stringify(still)); }
+      }
+      if(!myAthlete){ S.view="pickAthlete"; render(); return; }
+      S.curAthlete = myAthlete;
+      await loadSessions(myAthlete.id);
       await Promise.all(S.sessions.map(s=>loadExercises(s.id)));
       S.view="home"; render();
     }catch(e){ render(); toast("Couldn't load: "+e.message, true); }
   },
 
+  async claimAthlete(id){
+    const a = S.athletes.find(x=>x.id===id);
+    myAthlete = {id:a.id, name:a.name};
+    localStorage.setItem("gym_athlete", JSON.stringify(myAthlete));
+    this.refreshHome();
+  },
+  switchAthlete(){
+    myAthlete=null; localStorage.removeItem("gym_athlete");
+    this.refreshHome();
+  },
+  async coachPick(id){
+    S.curAthlete = S.athletes.find(x=>x.id===id) || S.curAthlete;
+    try{
+      await loadSessions(id);
+      await Promise.all(S.sessions.map(s=>loadExercises(s.id)));
+      S.view="sessions"; render();
+    }catch(e){ toast(e.message, true); }
+  },
+
+  /* athletes (coach) */
+  openAthleteForm(id){
+    const a = id ? S.athletes.find(x=>x.id===id) : null;
+    modal(`<h3>${a?"Rename athlete":"Add person"}</h3>
+      <label>Name</label><input id="m-athname" value="${esc(a?a.name:"")}" placeholder="e.g. Logan">
+      <div style="margin-top:20px;display:flex;gap:10px;">
+        <button class="btn" onclick="App.saveAthlete('${id||""}')">Save</button>
+        <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+        ${a?`<button class="btn-danger btn-sm" style="margin-left:auto;" onclick="App.deleteAthlete('${a.id}')">Delete</button>`:""}
+      </div>`);
+    $("#m-athname").focus();
+  },
+  async saveAthlete(id){
+    const name=$("#m-athname").value.trim(); if(!name) return toast("Name needed", true);
+    try{
+      if(id) await api(`athletes?id=eq.${id}`,"PATCH",{name});
+      else await api("athletes","POST",{name});
+      closeModal(); toast("Saved"); this.refreshHome();
+    }catch(e){ toast(e.message, true); }
+  },
+  async deleteAthlete(id){
+    if(!confirm("Delete this person, ALL their sessions and ALL their logged history? This can't be undone.")) return;
+    try{ await api(`athletes?id=eq.${id}`,"DELETE"); closeModal(); toast("Deleted"); this.refreshHome(); }
+    catch(e){ toast(e.message, true); }
+  },
+
   async saveSetup(){
-    const url=$("#su").value.trim(), key=$("#sk").value.trim();
+    const url=$("#su").value.trim().replace(/\/+$/,"").replace(/\/rest\/v1$/,""), key=$("#sk").value.trim();
     if(!url||!key) return toast("Both fields needed", true);
     cfg={url,key,title:"The Program"};
     try{
-      await api("sessions?select=id&limit=1");
+      await api("athletes?select=id&limit=1");
       localStorage.setItem("gym_cfg", JSON.stringify(cfg));
       toast("Connected"); render();
     }catch(e){ cfg=null; toast("Connection failed — check both values", true); }
@@ -408,13 +517,13 @@ const App = {
     toast("Saved"); this.go("home");
   },
   copyShare(link){
-    navigator.clipboard.writeText(link).then(()=>toast("Link copied — text it to him"))
+    navigator.clipboard.writeText(link).then(()=>toast("Link copied — text it over"))
       .catch(()=>{ prompt("Copy this link:", link); });
   },
   disconnect(){
     if(!confirm("Remove the connection details from this device?")) return;
-    localStorage.removeItem("gym_cfg"); localStorage.removeItem("gym_role");
-    cfg=null; role=null; render();
+    localStorage.removeItem("gym_cfg"); localStorage.removeItem("gym_role"); localStorage.removeItem("gym_athlete");
+    cfg=null; role=null; myAthlete=null; render();
   },
 
   /* sessions */
@@ -422,7 +531,7 @@ const App = {
     const s = id ? S.sessions.find(x=>x.id===id) : null;
     const cur = s ? s.color : "red";
     const picks = Object.keys(PLATE).map(c=>`<button data-c="${c}" class="${c===cur?'on':''}" style="background:${PLATE[c]}" aria-label="${c}" onclick="App._pickColor(this)"></button>`).join("");
-    modal(`<h3>${s?"Edit session":"New session"}</h3>
+    modal(`<h3>${s?"Edit session":"New session for "+esc(S.curAthlete.name)}</h3>
       <label>Name</label><input id="m-name" value="${esc(s?s.name:"")}" placeholder="e.g. Leg Day">
       <label>Plate colour</label><div class="colorpick" id="m-color" data-val="${cur}">${picks}</div>
       <div style="margin-top:20px;display:flex;gap:10px;">
@@ -439,15 +548,20 @@ const App = {
     const color=$("#m-color").dataset.val;
     try{
       if(id){ await api(`sessions?id=eq.${id}`,"PATCH",{name,color}); }
-      else{ const maxOrder = Math.max(0,...S.sessions.map(s=>s.sort_order||0)); await api("sessions","POST",{name,color,sort_order:maxOrder+1}); }
+      else{
+        const maxOrder = Math.max(0,...S.sessions.map(s=>s.sort_order||0));
+        await api("sessions","POST",{name,color,sort_order:maxOrder+1,athlete_id:S.curAthlete.id});
+      }
       closeModal(); toast("Saved");
-      if(S.view==="editSession"){ await loadSessions(); S.curSession=S.sessions.find(x=>x.id===id); render(); }
-      else this.refreshHome();
+      await loadSessions(S.curAthlete.id);
+      if(S.view==="editSession"){ S.curSession=S.sessions.find(x=>x.id===id); }
+      else{ await Promise.all(S.sessions.map(s=>loadExercises(s.id))); }
+      render();
     }catch(e){ toast(e.message, true); }
   },
   async deleteSession(id){
     if(!confirm("Delete this session, its exercises AND all logged history under it? This can't be undone.")) return;
-    try{ await api(`sessions?id=eq.${id}`,"DELETE"); toast("Deleted"); this.refreshHome(); }
+    try{ await api(`sessions?id=eq.${id}`,"DELETE"); toast("Deleted"); this.coachPick(S.curAthlete.id); }
     catch(e){ toast(e.message, true); }
   },
   async openEdit(id){
@@ -508,13 +622,11 @@ const App = {
     const i=list.findIndex(x=>x.id===id), j=i+dir;
     if(j<0||j>=list.length) return;
     const a=list[i], b=list[j];
-    // normalise orders to indexes then swap
     try{
       await Promise.all([
         api(`exercises?id=eq.${a.id}`,"PATCH",{sort_order:j}),
         api(`exercises?id=eq.${b.id}`,"PATCH",{sort_order:i})
       ]);
-      // fix any duplicate ordering drift by renumbering the rest client-side view only
       await loadExercises(S.curSession.id); render();
     }catch(e){ toast(e.message, true); }
   },
@@ -550,7 +662,7 @@ const App = {
     if(cur===d){ row.dataset.val=0; } else { row.dataset.val=d; btn.classList.add("on"); }
   },
   async saveLog(exId){
-    const rows=[...document.querySelectorAll(`#sets-${exId} .setrow`)];
+    const rows=[...document.querySelectorAll(`#sets-${CSS.escape(exId)} .setrow`)];
     const set_data=rows.map(r=>{
       const kg=r.querySelector('[data-f="kg"]').value.trim();
       const reps=r.querySelector('[data-f="reps"]').value.trim();
@@ -586,8 +698,9 @@ const App = {
     }catch(e){ toast(e.message, true); }
   },
   async openLogbook(){
+    if(!S.curAthlete) return;
     try{
-      S.logbook=await api("logs?select=*,exercise:exercises(name,session:sessions(name,color))&order=log_date.desc,created_at.desc&limit=40");
+      S.logbook=await api(`logs?select=*,exercise:exercises!inner(name,session:sessions!inner(name,color,athlete_id))&exercise.session.athlete_id=eq.${S.curAthlete.id}&order=log_date.desc,created_at.desc&limit=40`);
       S.view="logbook"; render();
     }catch(e){ toast(e.message, true); }
   },
