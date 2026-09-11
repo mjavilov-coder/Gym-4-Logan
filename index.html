@@ -213,7 +213,7 @@ function render(){
   if(!role){ app.innerHTML = viewRolePick(); return; }
   let inner = "";
   switch(S.view){
-    case "home":        inner = role==="coach" ? viewCoachHome() : viewAthleteHome(); break;
+    case "home":        inner = role==="coach" ? viewCoachHome() : viewSessions(); break;
     case "pickAthlete": inner = viewPickAthlete(); break;
     case "sessions":    inner = viewSessions(); break;
     case "editSession": inner = viewEditSession(); break;
@@ -261,11 +261,12 @@ function athleteColor(i){ return PLATE[PLATE_CYCLE[i % PLATE_CYCLE.length]]; }
 function viewCoachHome(){
   const cards = S.athletes.length ? S.athletes.map((a,i)=>{
     const n = S.sessionCounts[a.id]||0;
-    return `<button class="session-card" onclick="App.coachPick('${a.id}')">
+    return `<div class="session-card" role="button" tabindex="0" onclick="App.coachPick('${a.id}')"
+      onkeydown="if(event.key==='Enter')App.coachPick('${a.id}')">
       <div class="bar" style="background:${athleteColor(i)}"></div>
       <div class="body"><div class="name">${esc(a.name)}</div><div class="meta">${n} session${n===1?"":"s"}</div></div>
       <span class="side-act"><button class="btn-icon" onclick="event.stopPropagation();App.openAthleteForm('${a.id}')">Rename</button></span>
-      <div class="chev">&#8250;</div></button>`;
+      <div class="chev">&#8250;</div></div>`;
   }).join("") : `<div class="empty">No one on the roster yet. Add your first athlete.</div>`;
   return `<div class="section-head"><h2>Roster</h2>
     <button class="btn btn-sm" onclick="App.openAthleteForm()">+ Add person</button></div>
