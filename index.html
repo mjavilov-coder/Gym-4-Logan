@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1B1D22">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>The Program</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1B1D22; --surface:#242830; --surface2:#2C313B; --line:#3A404C;
+  --ink:#F1EFE8; --ink-dim:#A8ACB5; --ink-faint:#6E737E;
+  --red:#D64541; --blue:#3E7BC4; --yellow:#E8B93C; --green:#4C9A6A;
+  --chalk:#F1EFE8; --danger:#D64541;
+  --r:6px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{background:var(--bg); color:var(--ink); font-family:'Barlow',system-ui,sans-serif; font-size:16px; line-height:1.45;
+  padding-bottom:env(safe-area-inset-bottom);}
+#app{max-width:640px; margin:0 auto; padding:0 14px 60px;}
+h1,h2,h3,.disp{font-family:'Barlow Condensed',sans-serif; font-weight:700; text-transform:uppercase; letter-spacing:.02em; margin:0;}
+h1{font-size:30px;} h2{font-size:24px;} h3{font-size:19px;}
+a{color:var(--ink);}
+button{font-family:inherit; font-size:15px; font-weight:600; border:none; border-radius:var(--r); cursor:pointer; padding:11px 16px;}
+.btn{background:var(--chalk); color:#16181D;}
+.btn:active{transform:translateY(1px);}
+.btn-ghost{background:transparent; color:var(--ink); border:1px solid var(--line);}
+.btn-danger{background:transparent; color:var(--danger); border:1px solid var(--danger);}
+.btn-sm{padding:7px 12px; font-size:14px;}
+.btn-icon{background:transparent; color:var(--ink-dim); border:1px solid var(--line); padding:6px 10px; font-size:14px; line-height:1;}
+input,select,textarea{font-family:inherit; font-size:16px; background:var(--surface2); color:var(--ink);
+  border:1px solid var(--line); border-radius:var(--r); padding:10px 12px; width:100%;}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--yellow); outline-offset:1px;}
+label{display:block; font-size:13px; color:var(--ink-dim); margin:14px 0 5px; font-weight:600;}
+.field-row{display:flex; gap:10px;} .field-row>div{flex:1;}
+
+/* header */
+header{display:flex; align-items:center; justify-content:space-between; padding:16px 0 6px; gap:10px;}
+header .title{font-family:'Barlow Condensed'; font-weight:700; font-size:24px; text-transform:uppercase; letter-spacing:.03em;}
+.role-switch{display:flex; border:1px solid var(--line); border-radius:var(--r); overflow:hidden;}
+.role-switch button{border-radius:0; padding:7px 12px; font-size:13px; background:transparent; color:var(--ink-dim);}
+.role-switch button.on{background:var(--chalk); color:#16181D;}
+.gear{background:transparent; border:none; color:var(--ink-dim); font-size:20px; padding:6px;}
+
+/* cards */
+.card{background:var(--surface); border-radius:var(--r); padding:16px; margin:12px 0; border:1px solid var(--line);}
+.session-card{display:flex; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--r); padding:0; margin:10px 0; overflow:hidden; cursor:pointer; width:100%; text-align:left;}
+.session-card .bar{width:10px; align-self:stretch; flex:none;}
+.session-card .body{padding:16px 8px 16px 4px; flex:1;}
+.session-card .name{font-family:'Barlow Condensed'; font-weight:700; font-size:22px; text-transform:uppercase; letter-spacing:.02em;}
+.session-card .meta{font-size:13px; color:var(--ink-dim); margin-top:2px;}
+.session-card .chev{padding-right:14px; color:var(--ink-faint); font-size:20px;}
+
+/* exercise rows (coach) */
+.ex-row{display:flex; align-items:center; gap:8px; padding:12px 0; border-bottom:1px solid var(--line);}
+.ex-row:last-child{border-bottom:none;}
+.ex-row .info{flex:1; min-width:0;}
+.ex-row .nm{font-weight:600;}
+.ex-row .sub{font-size:13px; color:var(--ink-dim);}
+
+/* workout card (athlete) */
+.wcard{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); margin:14px 0; overflow:hidden;}
+.wcard .vid{position:relative; background:#000; cursor:pointer;}
+.wcard .vid img{display:block; width:100%; aspect-ratio:16/9; object-fit:cover; opacity:.85;}
+.wcard .vid .play{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;}
+.wcard .vid .play span{background:rgba(20,20,24,.75); border:1px solid var(--line); border-radius:999px;
+  padding:10px 22px; font-weight:600; font-size:14px;}
+.wcard iframe{display:block; width:100%; aspect-ratio:16/9; border:0;}
+.wcard .inner{padding:14px 16px 16px;}
+.target{display:inline-block; background:var(--surface2); border:1px solid var(--line); border-radius:var(--r);
+  padding:4px 10px; font-size:14px; margin-top:6px;}
+.lasttime{font-size:13px; color:var(--ink-dim); margin-top:8px;}
+.setrow{display:grid; grid-template-columns:52px 1fr 1fr; gap:8px; align-items:center; margin-top:8px;}
+.setrow .sn{font-size:13px; color:var(--ink-dim); font-weight:600;}
+.setrow input{padding:9px 10px;}
+.diff-row{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;}
+.diff-chip{border:1px solid var(--line); background:var(--surface2); color:var(--ink-dim);
+  border-radius:999px; padding:6px 12px; font-size:13px;}
+.diff-chip.on{color:#16181D; font-weight:600;}
+.d1.on{background:var(--green); border-color:var(--green);}
+.d2.on{background:#7FB98A; border-color:#7FB98A;}
+.d3.on{background:var(--yellow); border-color:var(--yellow);}
+.d4.on{background:#DE7A3A; border-color:#DE7A3A;}
+.d5.on{background:var(--red); border-color:var(--red); color:var(--ink);}
+.savedflag{font-size:13px; color:var(--green); font-weight:600;}
+
+/* difficulty dot in history */
+.dot{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:baseline;}
+
+/* log table */
+.logrow{padding:12px 0; border-bottom:1px solid var(--line);}
+.logrow:last-child{border-bottom:none;}
+.logrow .top{display:flex; justify-content:space-between; gap:10px; align-items:baseline;}
+.logrow .date{font-size:13px; color:var(--ink-dim);}
+.logrow .setsline{font-size:15px; margin-top:3px;}
+.logrow .cmt{font-size:13px; color:var(--ink-dim); font-style:italic; margin-top:3px;}
+
+/* modal */
+.modal-back{position:fixed; inset:0; background:rgba(10,11,14,.72); display:flex; align-items:flex-end; justify-content:center; z-index:50;}
+.modal{background:var(--surface); border:1px solid var(--line); border-radius:12px 12px 0 0; width:100%; max-width:640px;
+  max-height:88vh; overflow-y:auto; padding:20px 18px 30px;}
+@media(min-width:660px){ .modal-back{align-items:center;} .modal{border-radius:12px;} }
+.modal h3{margin-bottom:4px;}
+
+/* toast */
+#toast{position:fixed; left:50%; transform:translateX(-50%); bottom:24px; background:var(--chalk); color:#16181D;
+  padding:10px 18px; border-radius:999px; font-weight:600; font-size:14px; opacity:0; transition:opacity .2s; z-index:99; pointer-events:none; max-width:90%;}
+#toast.show{opacity:1;}
+#toast.err{background:var(--red); color:var(--ink);}
+
+.empty{color:var(--ink-dim); text-align:left; padding:22px 4px; font-size:15px;}
+.backlink{display:inline-block; margin:14px 0 2px; color:var(--ink-dim); font-size:14px; font-weight:600; background:none; border:none; padding:4px 0;}
+.section-head{display:flex; justify-content:space-between; align-items:center; margin-top:20px;}
+.hint{font-size:13px; color:var(--ink-faint); margin-top:6px;}
+.colorpick{display:flex; gap:10px; margin-top:6px;}
+.colorpick button{width:38px; height:38px; border-radius:50%; border:3px solid transparent; padding:0;}
+.colorpick button.on{border-color:var(--chalk);}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important;} }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast"></div>
+<script>
+"use strict";
+/* ---------- config & state ---------- */
+const PLATE = {red:"#D64541", blue:"#3E7BC4", yellow:"#E8B93C", green:"#4C9A6A"};
+const DIFF = ["","Too easy","Easy","Solid","Hard","Maxed out"];
+const DIFFC = ["","#4C9A6A","#7FB98A","#E8B93C","#DE7A3A","#D64541"];
+let cfg = JSON.parse(localStorage.getItem("gym_cfg")||"null");
+let role = localStorage.getItem("gym_role")||null;
+let S = { view:"home", sessions:[], exercises:{}, curSession:null, lastLogs:{}, todayLogs:{}, saved:{} };
+
+/* accept setup link: #cfg=base64(json) */
+(function(){
+  if(location.hash.startsWith("#cfg=")){
+    try{
+      const c = JSON.parse(atob(decodeURIComponent(location.hash.slice(5))));
+      if(c.url && c.key){ cfg = c; localStorage.setItem("gym_cfg", JSON.stringify(c)); }
+    }catch(e){}
+    history.replaceState(null,"",location.pathname);
+  }
+})();
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s??"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const today = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+const fmtDate = iso => { const [y,m,d]=iso.split("-"); return `${d}/${m}/${y.slice(2)}`; };
+function toast(msg, err){ const t=$("#toast"); t.textContent=msg; t.className=err?"show err":"show"; clearTimeout(t._t); t._t=setTimeout(()=>t.className="",2600); }
+function ytId(url){
+  if(!url) return null;
+  const m = url.match(/(?:youtu\.be\/|shorts\/|embed\/|watch\?v=|&v=)([\w-]{11})/) || url.match(/^([\w-]{11})$/);
+  return m ? m[1] : null;
+}
+function setsSummary(sd){
+  if(!sd || !sd.length) return "—";
+  return sd.filter(s=>s.kg!==""&&s.kg!=null).map(s=> s.reps ? `${s.kg}×${s.reps}` : `${s.kg}`).join(", ") + " kg";
+}
+
+/* ---------- Supabase REST ---------- */
+async function api(path, method="GET", body){
+  const headers = { apikey: cfg.key, Authorization: "Bearer "+cfg.key, "Content-Type":"application/json" };
+  if(method!=="GET") headers.Prefer = "return=representation";
+  const r = await fetch(cfg.url.replace(/\/+$/,"")+"/rest/v1/"+path, { method, headers, body: body?JSON.stringify(body):undefined });
+  if(!r.ok){ const t = await r.text(); throw new Error(t.slice(0,300)||("HTTP "+r.status)); }
+  if(r.status===204) return null;
+  const txt = await r.text();
+  return txt ? JSON.parse(txt) : null;
+}
+
+/* ---------- data loads ---------- */
+async function loadSessions(){
+  S.sessions = await api("sessions?select=*&order=sort_order.asc,created_at.asc");
+}
+async function loadExercises(sessionId){
+  S.exercises[sessionId] = await api(`exercises?session_id=eq.${sessionId}&select=*&order=sort_order.asc,created_at.asc`);
+}
+async function loadLogsFor(exIds){
+  S.lastLogs = {}; S.todayLogs = {};
+  if(!exIds.length) return;
+  const rows = await api(`logs?exercise_id=in.(${exIds.join(",")})&select=*&order=log_date.desc,created_at.desc&limit=400`);
+  const t = today();
+  for(const r of rows){
+    if(r.log_date===t && !S.todayLogs[r.exercise_id]) S.todayLogs[r.exercise_id]=r;
+    else if(r.log_date!==t && !S.lastLogs[r.exercise_id]) S.lastLogs[r.exercise_id]=r;
+  }
+}
+
+/* ---------- rendering ---------- */
+function render(){
+  const app = $("#app");
+  if(!cfg){ app.innerHTML = viewSetup(); return; }
+  if(!role){ app.innerHTML = viewRolePick(); return; }
+  let inner = "";
+  switch(S.view){
+    case "home": inner = role==="coach" ? viewCoachHome() : viewAthleteHome(); break;
+    case "editSession": inner = viewEditSession(); break;
+    case "workout": inner = viewWorkout(); break;
+    case "logbook": inner = viewLogbook(); break;
+    case "settings": inner = viewSettings(); break;
+  }
+  app.innerHTML = viewHeader() + inner;
+}
+function viewHeader(){
+  const title = esc(cfg.title||"The Program");
+  return `<header>
+    <div class="title">${title}</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <div class="role-switch" role="group" aria-label="Mode">
+        <button class="${role==='coach'?'on':''}" onclick="App.setRole('coach')">Coach</button>
+        <button class="${role==='athlete'?'on':''}" onclick="App.setRole('athlete')">Athlete</button>
+      </div>
+      <button class="gear" aria-label="Settings" onclick="App.go('settings')">&#9881;</button>
+    </div>
+  </header>`;
+}
+function viewSetup(){
+  return `<header><div class="title">The Program</div></header>
+  <div class="card">
+    <h2>Connect your database</h2>
+    <p style="color:var(--ink-dim);font-size:14px;">One-time step. Paste the two values from your Supabase project (Settings &rarr; API). Nothing is stored in the app file itself &mdash; only on this device.</p>
+    <label>Supabase project URL</label>
+    <input id="su" placeholder="https://xxxx.supabase.co" autocomplete="off">
+    <label>Anon public key</label>
+    <input id="sk" placeholder="eyJhbGciOi..." autocomplete="off">
+    <div style="margin-top:18px;"><button class="btn" onclick="App.saveSetup()">Test &amp; connect</button></div>
+  </div>`;
+}
+function viewRolePick(){
+  return `<header><div class="title">${esc(cfg.title||"The Program")}</div></header>
+  <div style="margin-top:30px;"><h2>Who's this?</h2></div>
+  <button class="session-card" onclick="App.setRole('coach')"><div class="bar" style="background:${PLATE.blue}"></div>
+    <div class="body"><div class="name">Coach</div><div class="meta">Build sessions, set targets, review the logbook</div></div><div class="chev">&#8250;</div></button>
+  <button class="session-card" onclick="App.setRole('athlete')"><div class="bar" style="background:${PLATE.red}"></div>
+    <div class="body"><div class="name">Athlete</div><div class="meta">Follow today's session and log your lifts</div></div><div class="chev">&#8250;</div></button>`;
+}
+function sessionCards(onclickName){
+  if(!S.sessions.length) return `<div class="empty">No sessions yet.</div>`;
+  return S.sessions.map(s=>{
+    const n = (S.exercises[s.id]||[]).length;
+    const meta = S.exercises[s.id] ? `${n} exercise${n===1?"":"s"}` : "";
+    return `<button class="session-card" onclick="App.${onclickName}('${s.id}')">
+      <div class="bar" style="background:${PLATE[s.color]||PLATE.red}"></div>
+      <div class="body"><div class="name">${esc(s.name)}</div><div class="meta">${meta}</div></div>
+      <div class="chev">&#8250;</div></button>`;
+  }).join("");
+}
+function viewCoachHome(){
+  return `<div class="section-head"><h2>Sessions</h2>
+    <button class="btn btn-sm" onclick="App.openSessionForm()">+ New session</button></div>
+  ${sessionCards("openEdit")}
+  <div style="margin-top:26px;"><button class="btn-ghost" style="width:100%;" onclick="App.openLogbook()">Open the logbook &mdash; see what's been lifted</button></div>`;
+}
+function viewAthleteHome(){
+  return `<div class="section-head"><h2>Pick today's session</h2></div>
+  ${sessionCards("openWorkout")}`;
+}
+function viewEditSession(){
+  const s = S.curSession;
+  const exs = S.exercises[s.id]||[];
+  const rows = exs.length ? exs.map((e,i)=>`
+    <div class="ex-row">
+      <div class="info"><div class="nm">${esc(e.name)}</div>
+        <div class="sub">${e.sets} &times; ${esc(e.reps)}${e.target_kg?` @ ${e.target_kg} kg`:""}${e.youtube_url?" &middot; video":""}</div></div>
+      <button class="btn-icon" aria-label="Move up" ${i===0?"disabled":""} onclick="App.moveEx('${e.id}',-1)">&#8593;</button>
+      <button class="btn-icon" aria-label="Move down" ${i===exs.length-1?"disabled":""} onclick="App.moveEx('${e.id}',1)">&#8595;</button>
+      <button class="btn-icon" onclick="App.openExForm('${e.id}')">Edit</button>
+      <button class="btn-icon" onclick="App.showHistory('${e.id}')">Log</button>
+    </div>`).join("") : `<div class="empty">No exercises yet. Add the first one.</div>`;
+  return `<button class="backlink" onclick="App.go('home')">&#8249; All sessions</button>
+  <div class="section-head"><h2 style="border-left:8px solid ${PLATE[s.color]||PLATE.red}; padding-left:10px;">${esc(s.name)}</h2>
+    <button class="btn-icon" onclick="App.openSessionForm('${s.id}')">Rename / colour</button></div>
+  <div class="card">${rows}</div>
+  <button class="btn" style="width:100%;" onclick="App.openExForm()">+ Add exercise</button>
+  <div style="margin-top:22px;"><button class="btn-danger btn-sm" onclick="App.deleteSession('${s.id}')">Delete this session</button></div>`;
+}
+function viewWorkout(){
+  const s = S.curSession;
+  const exs = S.exercises[s.id]||[];
+  const cards = exs.length ? exs.map(e=>workoutCard(e)).join("") : `<div class="empty">Nothing programmed here yet &mdash; ask your coach.</div>`;
+  return `<button class="backlink" onclick="App.go('home')">&#8249; Sessions</button>
+  <h2 style="border-left:8px solid ${PLATE[s.color]||PLATE.red}; padding-left:10px;">${esc(s.name)}</h2>
+  <div class="hint">Enter the weight you actually lifted for each set, rate how it felt, hit save.</div>
+  ${cards}`;
+}
+function workoutCard(e){
+  const vid = ytId(e.youtube_url);
+  const tlog = S.todayLogs[e.id];
+  const last = S.lastLogs[e.id];
+  const sd = tlog ? tlog.set_data : null;
+  const nSets = sd ? Math.max(sd.length, e.sets) : e.sets;
+  let setRows = "";
+  for(let i=0;i<nSets;i++){
+    const kg = sd && sd[i] ? sd[i].kg : (last && last.set_data[i] ? last.set_data[i].kg : "");
+    const reps = sd && sd[i] ? (sd[i].reps??"") : "";
+    setRows += `<div class="setrow"><span class="sn">Set ${i+1}</span>
+      <input inputmode="decimal" placeholder="kg" value="${esc(kg)}" data-ex="${e.id}" data-set="${i}" data-f="kg" aria-label="Set ${i+1} weight in kg">
+      <input inputmode="numeric" placeholder="reps (${esc(e.reps)})" value="${esc(reps)}" data-ex="${e.id}" data-set="${i}" data-f="reps" aria-label="Set ${i+1} reps"></div>`;
+  }
+  const curDiff = tlog ? (tlog.difficulty||0) : 0;
+  const chips = [1,2,3,4,5].map(d=>`<button class="diff-chip d${d} ${curDiff===d?'on':''}" data-diffex="${e.id}" data-d="${d}" onclick="App.pickDiff('${e.id}',${d},this)">${DIFF[d]}</button>`).join("");
+  const lastLine = last ? `<div class="lasttime">Last time (${fmtDate(last.log_date)}): ${esc(setsSummary(last.set_data))}${last.difficulty?` &middot; <span class="dot" style="background:${DIFFC[last.difficulty]}"></span>${DIFF[last.difficulty]}`:""}</div>` : "";
+  const savedNote = S.saved[e.id] || tlog ? `<span class="savedflag" id="saved-${e.id}">Saved today &#10003;</span>` : `<span class="savedflag" id="saved-${e.id}"></span>`;
+  const video = vid ? `<div class="vid" id="vid-${e.id}" onclick="App.playVid('${e.id}','${vid}')">
+      <img src="https://i.ytimg.com/vi/${vid}/hqdefault.jpg" alt="" loading="lazy">
+      <div class="play"><span>&#9654;&nbsp; Watch demo</span></div></div>` : "";
+  return `<div class="wcard">${video}<div class="inner">
+    <h3>${esc(e.name)}</h3>
+    <div class="target">Target: ${e.sets} &times; ${esc(e.reps)}${e.target_kg?` @ <strong>${e.target_kg} kg</strong>`:""}</div>
+    ${e.notes?`<div class="hint">${esc(e.notes)}</div>`:""}
+    ${lastLine}
+    <div id="sets-${e.id}">${setRows}</div>
+    <div style="margin-top:8px;"><button class="btn-icon" onclick="App.addSetRow('${e.id}')">+ extra set</button></div>
+    <label>How did it feel?</label>
+    <div class="diff-row" id="diff-${e.id}" data-val="${curDiff}">${chips}</div>
+    <label>Comment (optional)</label>
+    <input id="cmt-${e.id}" value="${esc(tlog?tlog.comment||"":"")}" placeholder="e.g. right knee niggle on last set">
+    <div style="display:flex;align-items:center;gap:12px;margin-top:14px;">
+      <button class="btn" onclick="App.saveLog('${e.id}')">Save ${tlog?"changes":"exercise"}</button>
+      ${savedNote}
+      <button class="btn-icon" style="margin-left:auto;" onclick="App.showHistory('${e.id}')">History</button>
+    </div>
+  </div></div>`;
+}
+function viewLogbook(){
+  const rows = (S.logbook||[]).map(l=>{
+    const exn = l.exercise ? l.exercise.name : "?";
+    const sn = l.exercise && l.exercise.session ? l.exercise.session.name : "";
+    const col = l.exercise && l.exercise.session ? (PLATE[l.exercise.session.color]||"") : "";
+    return `<div class="logrow">
+      <div class="top"><strong>${esc(exn)}</strong><span class="date">${fmtDate(l.log_date)}</span></div>
+      <div class="sub" style="font-size:13px;color:var(--ink-dim);"><span class="dot" style="background:${col}"></span>${esc(sn)}</div>
+      <div class="setsline">${esc(setsSummary(l.set_data))}${l.difficulty?` &nbsp;&middot;&nbsp; <span class="dot" style="background:${DIFFC[l.difficulty]}"></span>${DIFF[l.difficulty]}`:""}</div>
+      ${l.comment?`<div class="cmt">&ldquo;${esc(l.comment)}&rdquo;</div>`:""}
+      ${role==="coach"?`<div style="margin-top:6px;"><button class="btn-icon" onclick="App.deleteLog('${l.id}')">Delete entry</button></div>`:""}
+    </div>`;
+  }).join("");
+  return `<button class="backlink" onclick="App.go('home')">&#8249; Back</button>
+  <h2>Logbook</h2><div class="hint">Most recent first, last 40 entries.</div>
+  <div class="card">${rows||'<div class="empty">Nothing logged yet.</div>'}</div>`;
+}
+function viewSettings(){
+  const shareLink = location.origin + location.pathname + "#cfg=" + encodeURIComponent(btoa(JSON.stringify(cfg)));
+  return `<button class="backlink" onclick="App.go('home')">&#8249; Back</button>
+  <h2>Settings</h2>
+  <div class="card">
+    <label>App title</label><input id="set-title" value="${esc(cfg.title||"The Program")}">
+    <label>Supabase URL</label><input id="set-url" value="${esc(cfg.url)}">
+    <label>Anon key</label><input id="set-key" value="${esc(cfg.key)}">
+    <div style="margin-top:16px;"><button class="btn" onclick="App.saveSettings()">Save</button></div>
+  </div>
+  <div class="card">
+    <h3>Set up the other phone</h3>
+    <p style="font-size:14px;color:var(--ink-dim);">Send this link once &mdash; opening it connects that device automatically (the keys travel inside the link, not the website).</p>
+    <button class="btn-ghost" onclick="App.copyShare('${esc(shareLink)}')">Copy setup link</button>
+  </div>
+  <div class="card">
+    <button class="btn-danger btn-sm" onclick="App.disconnect()">Disconnect this device</button>
+  </div>`;
+}
+
+/* ---------- modal ---------- */
+function modal(html){
+  const back = document.createElement("div");
+  back.className="modal-back";
+  back.innerHTML = `<div class="modal">${html}</div>`;
+  back.addEventListener("click", ev=>{ if(ev.target===back) back.remove(); });
+  document.body.appendChild(back);
+  return back;
+}
+function closeModal(){ const m=document.querySelector(".modal-back"); if(m) m.remove(); }
+
+/* ---------- app actions ---------- */
+const App = {
+  go(v){ S.view=v; if(v==="home") this.refreshHome(); else render(); },
+  setRole(r){ role=r; localStorage.setItem("gym_role",r); S.view="home"; this.refreshHome(); },
+
+  async refreshHome(){
+    try{
+      await loadSessions();
+      await Promise.all(S.sessions.map(s=>loadExercises(s.id)));
+      S.view="home"; render();
+    }catch(e){ render(); toast("Couldn't load: "+e.message, true); }
+  },
+
+  async saveSetup(){
+    const url=$("#su").value.trim(), key=$("#sk").value.trim();
+    if(!url||!key) return toast("Both fields needed", true);
+    cfg={url,key,title:"The Program"};
+    try{
+      await api("sessions?select=id&limit=1");
+      localStorage.setItem("gym_cfg", JSON.stringify(cfg));
+      toast("Connected"); render();
+    }catch(e){ cfg=null; toast("Connection failed — check both values", true); }
+  },
+  async saveSettings(){
+    cfg.title=$("#set-title").value.trim()||"The Program";
+    cfg.url=$("#set-url").value.trim(); cfg.key=$("#set-key").value.trim();
+    localStorage.setItem("gym_cfg", JSON.stringify(cfg));
+    document.title = cfg.title;
+    toast("Saved"); this.go("home");
+  },
+  copyShare(link){
+    navigator.clipboard.writeText(link).then(()=>toast("Link copied — text it to him"))
+      .catch(()=>{ prompt("Copy this link:", link); });
+  },
+  disconnect(){
+    if(!confirm("Remove the connection details from this device?")) return;
+    localStorage.removeItem("gym_cfg"); localStorage.removeItem("gym_role");
+    cfg=null; role=null; render();
+  },
+
+  /* sessions */
+  openSessionForm(id){
+    const s = id ? S.sessions.find(x=>x.id===id) : null;
+    const cur = s ? s.color : "red";
+    const picks = Object.keys(PLATE).map(c=>`<button data-c="${c}" class="${c===cur?'on':''}" style="background:${PLATE[c]}" aria-label="${c}" onclick="App._pickColor(this)"></button>`).join("");
+    modal(`<h3>${s?"Edit session":"New session"}</h3>
+      <label>Name</label><input id="m-name" value="${esc(s?s.name:"")}" placeholder="e.g. Leg Day">
+      <label>Plate colour</label><div class="colorpick" id="m-color" data-val="${cur}">${picks}</div>
+      <div style="margin-top:20px;display:flex;gap:10px;">
+        <button class="btn" onclick="App.saveSession('${id||""}')">Save</button>
+        <button class="btn-ghost" onclick="closeModal()">Cancel</button></div>`);
+    $("#m-name").focus();
+  },
+  _pickColor(btn){
+    btn.parentElement.querySelectorAll("button").forEach(b=>b.classList.remove("on"));
+    btn.classList.add("on"); btn.parentElement.dataset.val = btn.dataset.c;
+  },
+  async saveSession(id){
+    const name=$("#m-name").value.trim(); if(!name) return toast("Name needed", true);
+    const color=$("#m-color").dataset.val;
+    try{
+      if(id){ await api(`sessions?id=eq.${id}`,"PATCH",{name,color}); }
+      else{ const maxOrder = Math.max(0,...S.sessions.map(s=>s.sort_order||0)); await api("sessions","POST",{name,color,sort_order:maxOrder+1}); }
+      closeModal(); toast("Saved");
+      if(S.view==="editSession"){ await loadSessions(); S.curSession=S.sessions.find(x=>x.id===id); render(); }
+      else this.refreshHome();
+    }catch(e){ toast(e.message, true); }
+  },
+  async deleteSession(id){
+    if(!confirm("Delete this session, its exercises AND all logged history under it? This can't be undone.")) return;
+    try{ await api(`sessions?id=eq.${id}`,"DELETE"); toast("Deleted"); this.refreshHome(); }
+    catch(e){ toast(e.message, true); }
+  },
+  async openEdit(id){
+    S.curSession = S.sessions.find(x=>x.id===id);
+    try{ await loadExercises(id); S.view="editSession"; render(); }
+    catch(e){ toast(e.message, true); }
+  },
+
+  /* exercises */
+  openExForm(exId){
+    const list = S.exercises[S.curSession.id]||[];
+    const e = exId ? list.find(x=>x.id===exId) : null;
+    modal(`<h3>${e?"Edit exercise":"New exercise"}</h3>
+      <label>Exercise name</label><input id="m-exname" value="${esc(e?e.name:"")}" placeholder="e.g. Back squat">
+      <div class="field-row">
+        <div><label>Sets</label><input id="m-sets" inputmode="numeric" value="${e?e.sets:3}"></div>
+        <div><label>Reps</label><input id="m-reps" value="${esc(e?e.reps:"10")}" placeholder="10 or 8-12"></div>
+        <div><label>Target kg</label><input id="m-kg" inputmode="decimal" value="${e&&e.target_kg!=null?e.target_kg:""}" placeholder="optional"></div>
+      </div>
+      <label>YouTube demo link</label><input id="m-yt" value="${esc(e?e.youtube_url||"":"")}" placeholder="paste any YouTube URL">
+      <label>Coach notes</label><input id="m-notes" value="${esc(e?e.notes||"":"")}" placeholder="e.g. pause 2 sec at the bottom">
+      <div style="margin-top:20px;display:flex;gap:10px;">
+        <button class="btn" onclick="App.saveEx('${exId||""}')">Save</button>
+        <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+        ${e?`<button class="btn-danger btn-sm" style="margin-left:auto;" onclick="App.deleteEx('${e.id}')">Delete</button>`:""}
+      </div>`);
+    $("#m-exname").focus();
+  },
+  async saveEx(exId){
+    const name=$("#m-exname").value.trim(); if(!name) return toast("Name needed", true);
+    const yt=$("#m-yt").value.trim();
+    if(yt && !ytId(yt)) return toast("That YouTube link doesn't look right", true);
+    const body={ name,
+      sets: parseInt($("#m-sets").value)||3,
+      reps: $("#m-reps").value.trim()||"10",
+      target_kg: $("#m-kg").value.trim()===""?null:parseFloat($("#m-kg").value),
+      youtube_url: yt||null,
+      notes: $("#m-notes").value.trim()||null };
+    try{
+      if(exId){ await api(`exercises?id=eq.${exId}`,"PATCH",body); }
+      else{
+        const list=S.exercises[S.curSession.id]||[];
+        body.session_id=S.curSession.id;
+        body.sort_order=Math.max(0,...list.map(x=>x.sort_order||0))+1;
+        await api("exercises","POST",body);
+      }
+      closeModal(); toast("Saved");
+      await loadExercises(S.curSession.id); render();
+    }catch(e){ toast(e.message, true); }
+  },
+  async deleteEx(id){
+    if(!confirm("Delete this exercise and its logged history?")) return;
+    try{ await api(`exercises?id=eq.${id}`,"DELETE"); closeModal(); toast("Deleted");
+      await loadExercises(S.curSession.id); render(); }catch(e){ toast(e.message, true); }
+  },
+  async moveEx(id, dir){
+    const list=S.exercises[S.curSession.id];
+    const i=list.findIndex(x=>x.id===id), j=i+dir;
+    if(j<0||j>=list.length) return;
+    const a=list[i], b=list[j];
+    // normalise orders to indexes then swap
+    try{
+      await Promise.all([
+        api(`exercises?id=eq.${a.id}`,"PATCH",{sort_order:j}),
+        api(`exercises?id=eq.${b.id}`,"PATCH",{sort_order:i})
+      ]);
+      // fix any duplicate ordering drift by renumbering the rest client-side view only
+      await loadExercises(S.curSession.id); render();
+    }catch(e){ toast(e.message, true); }
+  },
+
+  /* athlete workout */
+  async openWorkout(id){
+    S.curSession = S.sessions.find(x=>x.id===id);
+    try{
+      await loadExercises(id);
+      await loadLogsFor((S.exercises[id]||[]).map(e=>e.id));
+      S.saved={}; S.view="workout"; render();
+    }catch(e){ toast(e.message, true); }
+  },
+  playVid(exId, vid){
+    const el = document.getElementById("vid-"+exId);
+    el.outerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?autoplay=1&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen title="Exercise demo"></iframe>`;
+  },
+  addSetRow(exId){
+    const wrap=document.getElementById("sets-"+exId);
+    const n=wrap.querySelectorAll(".setrow").length;
+    const e=(S.exercises[S.curSession.id]||[]).find(x=>x.id===exId);
+    const div=document.createElement("div");
+    div.className="setrow";
+    div.innerHTML=`<span class="sn">Set ${n+1}</span>
+      <input inputmode="decimal" placeholder="kg" data-ex="${exId}" data-set="${n}" data-f="kg" aria-label="Set ${n+1} weight in kg">
+      <input inputmode="numeric" placeholder="reps (${esc(e?e.reps:"")})" data-ex="${exId}" data-set="${n}" data-f="reps" aria-label="Set ${n+1} reps">`;
+    wrap.appendChild(div);
+  },
+  pickDiff(exId, d, btn){
+    const row=document.getElementById("diff-"+exId);
+    const cur=parseInt(row.dataset.val)||0;
+    row.querySelectorAll(".diff-chip").forEach(c=>c.classList.remove("on"));
+    if(cur===d){ row.dataset.val=0; } else { row.dataset.val=d; btn.classList.add("on"); }
+  },
+  async saveLog(exId){
+    const rows=[...document.querySelectorAll(`#sets-${exId} .setrow`)];
+    const set_data=rows.map(r=>{
+      const kg=r.querySelector('[data-f="kg"]').value.trim();
+      const reps=r.querySelector('[data-f="reps"]').value.trim();
+      return {kg: kg===""?null:parseFloat(kg), reps: reps===""?null:parseInt(reps)};
+    }).filter(s=>s.kg!=null||s.reps!=null);
+    if(!set_data.length) return toast("Enter at least one set", true);
+    const difficulty=parseInt(document.getElementById("diff-"+exId).dataset.val)||null;
+    const comment=document.getElementById("cmt-"+exId).value.trim()||null;
+    const payload={ set_data, difficulty, comment, log_date: today() };
+    try{
+      const existing=S.todayLogs[exId];
+      if(existing){ const r=await api(`logs?id=eq.${existing.id}`,"PATCH",payload); S.todayLogs[exId]=r[0]||existing; }
+      else{ payload.exercise_id=exId; const r=await api("logs","POST",payload); S.todayLogs[exId]=r[0]; }
+      S.saved[exId]=true;
+      const flag=document.getElementById("saved-"+exId); if(flag) flag.textContent="Saved today ✓";
+      toast("Logged");
+    }catch(e){ toast(e.message, true); }
+  },
+
+  /* history & logbook */
+  async showHistory(exId){
+    let ex=null;
+    for(const k in S.exercises){ const f=(S.exercises[k]||[]).find(x=>x.id===exId); if(f){ex=f;break;} }
+    try{
+      const rows=await api(`logs?exercise_id=eq.${exId}&select=*&order=log_date.desc,created_at.desc&limit=60`);
+      const list=rows.length?rows.map(l=>`<div class="logrow">
+          <div class="top"><span>${esc(setsSummary(l.set_data))}</span><span class="date">${fmtDate(l.log_date)}</span></div>
+          ${l.difficulty?`<div style="font-size:13px;"><span class="dot" style="background:${DIFFC[l.difficulty]}"></span>${DIFF[l.difficulty]}</div>`:""}
+          ${l.comment?`<div class="cmt">&ldquo;${esc(l.comment)}&rdquo;</div>`:""}
+        </div>`).join(""):`<div class="empty">No history yet.</div>`;
+      modal(`<h3>${esc(ex?ex.name:"History")}</h3><div>${list}</div>
+        <div style="margin-top:16px;"><button class="btn-ghost" onclick="closeModal()">Close</button></div>`);
+    }catch(e){ toast(e.message, true); }
+  },
+  async openLogbook(){
+    try{
+      S.logbook=await api("logs?select=*,exercise:exercises(name,session:sessions(name,color))&order=log_date.desc,created_at.desc&limit=40");
+      S.view="logbook"; render();
+    }catch(e){ toast(e.message, true); }
+  },
+  async deleteLog(id){
+    if(!confirm("Delete this log entry?")) return;
+    try{ await api(`logs?id=eq.${id}`,"DELETE"); toast("Deleted"); this.openLogbook(); }
+    catch(e){ toast(e.message, true); }
+  }
+};
+window.App=App; window.closeModal=closeModal;
+
+/* ---------- boot ---------- */
+if(cfg){ document.title=cfg.title||"The Program"; App.refreshHome(); } else render();
+</script>
+</body>
+</html>
