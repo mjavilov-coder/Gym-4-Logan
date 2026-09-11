@@ -226,13 +226,15 @@ function render(){
 function viewHeader(){
   const title = esc(cfg.title||"The Program");
   const sub = role==="athlete" && myAthlete ? `<div class="ath-banner">Training as <strong>${esc(myAthlete.name)}</strong></div>` : "";
+  const showSwitch = !myAthlete || role==="coach";
+  const switchHtml = showSwitch ? `<div class="role-switch" role="group" aria-label="Mode">
+        <button class="${role==='coach'?'on':''}" onclick="App.enterCoach()">Coach</button>
+        <button class="${role==='athlete'?'on':''}" onclick="App.setRole('athlete')">Athlete</button>
+      </div>` : "";
   return `<header>
     <div><div class="title">${title}</div>${sub}</div>
     <div style="display:flex;gap:8px;align-items:center;">
-      <div class="role-switch" role="group" aria-label="Mode">
-        <button class="${role==='coach'?'on':''}" onclick="App.setRole('coach')">Coach</button>
-        <button class="${role==='athlete'?'on':''}" onclick="App.setRole('athlete')">Athlete</button>
-      </div>
+      ${switchHtml}
       <button class="gear" aria-label="Settings" onclick="App.go('settings')">&#9881;</button>
     </div>
   </header>`;
@@ -252,7 +254,7 @@ function viewSetup(){
 function viewRolePick(){
   return `<header><div class="title">${esc(cfg.title||"The Program")}</div></header>
   <div style="margin-top:30px;"><h2>Who's this?</h2></div>
-  <button class="session-card" onclick="App.setRole('coach')"><div class="bar" style="background:${PLATE.blue}"></div>
+  <button class="session-card" onclick="App.enterCoach()"><div class="bar" style="background:${PLATE.blue}"></div>
     <div class="body"><div class="name">Coach</div><div class="meta">Build sessions, set targets, review the logbook</div></div><div class="chev">&#8250;</div></button>
   <button class="session-card" onclick="App.setRole('athlete')"><div class="bar" style="background:${PLATE.red}"></div>
     <div class="body"><div class="name">Athlete</div><div class="meta">Follow your sessions and log your lifts</div></div><div class="chev">&#8250;</div></button>`;
@@ -390,10 +392,21 @@ function viewLogbook(){
 }
 function viewSettings(){
   const shareLink = location.origin + location.pathname + "#cfg=" + encodeURIComponent(btoa(JSON.stringify({url:cfg.url,key:cfg.key,title:cfg.title})));
-  const switchBtn = role==="athlete" ? `<div class="card">
-    <h3>Not ${esc(myAthlete?myAthlete.name:"you")}?</h3>
-    <p style="font-size:14px;color:var(--ink-dim);">Hand the phone over or picked the wrong name.</p>
-    <button class="btn-ghost" onclick="App.switchAthlete()">Switch person</button></div>` : "";
+  if(role==="athlete" && myAthlete){
+    return `<button class="backlink" onclick="App.go('home')">&#8249; Back</button>
+    <h2>Settings</h2>
+    <div class="card">
+      <h3>Not ${esc(myAthlete.name)}?</h3>
+      <p style="font-size:14px;color:var(--ink-dim);">Hand the phone over or picked the wrong name.</p>
+      <button class="btn-ghost" onclick="App.switchAthlete()">Switch person</button></div>
+    <div class="card">
+      <h3>Coach mode</h3>
+      <p style="font-size:14px;color:var(--ink-dim);">For the coach only${S.pin?" — PIN required":""}.</p>
+      <button class="btn-ghost" onclick="App.enterCoach()">Enter coach mode</button></div>
+    <div class="card">
+      <button class="btn-danger btn-sm" onclick="App.disconnect()">Disconnect this device</button>
+    </div>`;
+  }
   return `<button class="backlink" onclick="App.go('home')">&#8249; Back</button>
   <h2>Settings</h2>
   <div class="card">
@@ -403,11 +416,17 @@ function viewSettings(){
     <div style="margin-top:16px;"><button class="btn" onclick="App.saveSettings()">Save</button></div>
   </div>
   <div class="card">
+    <h3>Coach PIN</h3>
+    <p style="font-size:14px;color:var(--ink-dim);">Locks coach mode on every phone. Athletes see only their own training. A determined tech-head could still get around it &mdash; this is a lock on the door, not a bank vault.</p>
+    <label>PIN (blank = no lock)</label><input id="set-pin" inputmode="numeric" value="${esc(S.pin||"")}" placeholder="e.g. 4 digits">
+    <div style="margin-top:12px;"><button class="btn btn-sm" onclick="App.savePin()">Save PIN</button></div>
+  </div>
+  <div class="card">
     <h3>Set up another phone</h3>
     <p style="font-size:14px;color:var(--ink-dim);">Send this link to anyone on the roster &mdash; opening it connects their device automatically, then they pick their own name. Only share it with people who should see the data.</p>
     <button class="btn-ghost" onclick="App.copyShare('${esc(shareLink)}')">Copy setup link</button>
   </div>
-  ${switchBtn}
+  ${role==="athlete"?`<div class="card"><h3>Switch person</h3><button class="btn-ghost" onclick="App.switchAthlete()">Pick a different name</button></div>`:""}
   <div class="card">
     <button class="btn-danger btn-sm" onclick="App.disconnect()">Disconnect this device</button>
   </div>`;
@@ -428,10 +447,47 @@ function closeModal(){ const m=document.querySelector(".modal-back"); if(m) m.re
 const App = {
   go(v){
     if(v==="home"){ this.refreshHome(); return; }
+    if(v==="settings"){ this.openSettings(); return; }
     if(v==="sessions" && role==="coach" && S.curAthlete){ this.coachPick(S.curAthlete.id); return; }
     S.view=v; render();
   },
   setRole(r){ role=r; localStorage.setItem("gym_role",r); this.refreshHome(); },
+
+  async loadPin(){
+    try{ const rows=await api("app_config?key=eq.coach_pin&select=value"); S.pin=rows.length?(rows[0].value||null):null; S.pinTableMissing=false; }
+    catch(e){ S.pin=null; S.pinTableMissing=true; }
+  },
+  async openSettings(){ await this.loadPin(); S.view="settings"; render(); },
+  async enterCoach(){
+    if(role==="coach"){ this.setRole("coach"); return; }
+    await this.loadPin();
+    if(!S.pin){ this.setRole("coach"); return; }
+    modal(`<h3>Coach mode</h3>
+      <label>Coach PIN</label><input id="m-pin" type="password" inputmode="numeric" autocomplete="off">
+      <div style="margin-top:20px;display:flex;gap:10px;">
+        <button class="btn" onclick="App.checkPin()">Unlock</button>
+        <button class="btn-ghost" onclick="closeModal()">Cancel</button></div>`);
+    const inp=$("#m-pin"); inp.focus();
+    inp.addEventListener("keydown",ev=>{ if(ev.key==="Enter") App.checkPin(); });
+  },
+  checkPin(){
+    if($("#m-pin").value===S.pin){ closeModal(); this.setRole("coach"); }
+    else toast("Wrong PIN", true);
+  },
+  async savePin(){
+    const v=$("#set-pin").value.trim();
+    try{
+      if(S.pinTableMissing) throw new Error("missing table");
+      if(v){
+        const r=await api("app_config?key=eq.coach_pin","PATCH",{value:v});
+        if(!r || !r.length) await api("app_config","POST",{key:"coach_pin",value:v});
+        S.pin=v; toast("PIN set — coach mode is now locked on athlete phones");
+      }else{
+        await api("app_config?key=eq.coach_pin","DELETE");
+        S.pin=null; toast("PIN removed — coach mode is open");
+      }
+    }catch(e){ toast("Run add-coach-pin.sql in Supabase first, then try again", true); }
+  },
 
   async refreshHome(){
     try{
